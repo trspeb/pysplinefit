@@ -3,14 +3,15 @@
 
 "Some things cannot be calculated. For everything else, you've got maths."
 
-## @package pyspline
+## @package pysplinefit
 #
 # @todo functions define functions in order to use the module
 #        without classes for some users
 # @todo addition work on mono+int, mono+mono, basis+mono
 # @todo plots work on plot overloading
+# @todo array/matrix ?
 #
-# @version 0.2
+# @version 0.3
 # @author P.E.Bontinck
 # @licence GPL3
 
@@ -67,7 +68,7 @@ class Basis(object):
         return "basis :{0}".format(self.t)
 
 
-class genspline(object):
+class Genspline(object):
     def __init__(self, basis, coeffs):
         """
         generic linear combination from a basis of functions and coefficients for each function
@@ -79,9 +80,9 @@ class genspline(object):
 
     def __call__(self, x):
         X = self.b(x)
-        return(X*self.c)
+        return(sc.array(X*self.c).flatten())
 
-class optspline(genspline):
+class Optspline(Genspline):
     def __init__(self, basis, x, y):
         """
         spline fitting of points (x,y) on basis
@@ -93,7 +94,7 @@ class optspline(genspline):
 
 # specific classes
 
-class hat(Mono):
+class Hat(Mono):
     def __init__(self, left=-1.0, right=1.0, center=0.0):
         """
         simple normalized hat function
@@ -122,7 +123,7 @@ class hat(Mono):
         return "hat function ({0},{1},{2})".format(self.a+self.c,
                                                    self.c, self.b+self.c)
 
-class hatbasis(Basis):
+class Hatbasis(Basis):
     def __init__(self, bp):
         """
         hat functions orthogonal basis based on breakpoints bp
@@ -132,10 +133,10 @@ class hatbasis(Basis):
         x = sc.hstack((bpa.min(), bpa, bpa.max()))
         self.t = []
         for i in range(len(bp)):
-            self.t.append(hat(x[i], x[i+2], x[i+1]))
+            self.t.append(Hat(x[i], x[i+2], x[i+1]))
         self.lt = len(self.t)
 
-class absf(Mono):
+class Absf(Mono):
     def __init__(self, c):
         self.c = c
     def __call__(self, x):
@@ -143,15 +144,15 @@ class absf(Mono):
     def __repr__(self):
         return("|x-{0}|".format(self.c))
 
-class absbasis(Basis):
+class Absbasis(Basis):
     def __init__(self, bp):
         bpa = convarga(bp)
         self.t = []
         for i in bp:
-            self.t.append(absf(i))
+            self.t.append(Absf(i))
         self.lt = len(self.t)
 
-class mpoly(Mono):
+class Mpoly(Mono):
     def __init__(self, order):
         self.n = order
 
@@ -161,17 +162,17 @@ class mpoly(Mono):
     def __repr__(self):
         return "x^{0}".format(self.n)
 
-class polybasis(Basis):
+class Polybasis(Basis):
     def __init__(self, n):
         """
         polynomial basis of order n
         """
         self.t = []
         for i in range(n+1):
-            self.t.append(mpoly(i))
+            self.t.append(Mpoly(i))
         self.lt = len(self.t)
 
-class absf3(Mono):
+class Absf3(Mono):
     def __init__(self, c):
         self.c = c
     def __call__(self, x):
@@ -179,12 +180,12 @@ class absf3(Mono):
     def __repr__(self):
         return("|x-{0}|^3".format(self.c))
 
-class cubsplinebasis(Basis):
+class Cubsplinebasis(Basis):
     def __init__(self, bp):
-        self.t = [mpoly(0),mpoly(1)]
+        self.t = [Mpoly(0),Mpoly(1)]
         bpa = convarga(bp)
         for i in bpa:
-            self.t.append(absf3(i))
+            self.t.append(Absf3(i))
         self.lt = len(self.t)
 
 if __name__ == "__main__":
@@ -193,34 +194,40 @@ if __name__ == "__main__":
     x = sc.array((0, 0.1, 1, 1.5, 2, 2.3, 2.6, 2.9, 3))
     xp = sc.linspace(-.5, 3.5, 200)
     y = sc.sin(x/1.5)
-    b0 = hatbasis((0, 1, 2, 3))
-    y0 = optspline(b0, x, y)
+    b0 = Hatbasis((0, 1, 2, 3))
+    y0 = Optspline(b0, x, y)
     print("hat optimisation OK")
-    b1 = polybasis(2)
-    y1 = optspline(b1, x, y)
+    b1 = Polybasis(2)
+    y1 = Optspline(b1, x, y)
     print("polynomial optimisation OK")
-    b2 = absbasis((0, 1, 2, 3))
-    y2 = optspline(b2, x, y)
+    b2 = Absbasis((0, 1, 2, 3))
+    y2 = Optspline(b2, x, y)
     print("abs functions optimisation OK")
-    b3 = cubsplinebasis((0, 1, 2, 3))
-    y3 = optspline(b3, x, y)
+    b3 = Cubsplinebasis((0, 1, 2, 3))
+    y3 = Optspline(b3, x, y)
     print("cubic spline optimisation OK")
 
     pl.ioff()
     pl.subplot(2,1,1)
-    pl.plot(x, y, 'bo-')
-    pl.plot(xp, y0(xp), 'g-')
+    pl.plot(x, y, 'bo-', label='data')
+    pl.plot(xp, y0(xp), 'g-', label='hat')
     print("hat evaluation OK")
-    pl.plot(xp, y1(xp), 'r-')
+    pl.plot(xp, y1(xp), 'r-', label='poly')
     print("polynomial evaluation OK")
-    pl.plot(xp, y2(xp), 'm-')
+    pl.plot(xp, y2(xp), 'm-', label='abs')
     print("abs evaluation OK")
-    pl.plot(xp, y3(xp), 'c-')
+    pl.plot(xp, y3(xp), 'c-', label='cubic')
     print("cubic evaluation OK")
+    pl.legend(loc=2)
     pl.grid()
+    ax1 = pl.axis()
     pl.subplot(2,1,2)
-    pl.plot(x, y-y0(x), 'g')
-    pl.plot(x, y-y1(x), 'r')
-    pl.plot(x, y-y2(x), 'm')
-    pl.plot(x, y-y3(x), 'c')
+    pl.plot(x, y-y0(x), 'g', label='hat')
+    pl.plot(x, y-y1(x), 'r', label='poly')
+    pl.plot(x, y-y2(x), 'm', label='abs')
+    pl.plot(x, y-y3(x), 'c', label='cubic')
+    pl.grid()
+    ax2 = pl.axis()
+    pl.axis([ax1[0], ax1[1], ax2[2], ax2[3]])
+    pl.legend(loc=2)
     pl.show()
