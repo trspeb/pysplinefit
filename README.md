@@ -35,7 +35,7 @@ $\frac{dN}{dt} = f(N)$ with $f(0)=0$.
 
 We realize a first experimentation. We calculate the speed from intervals between detection pulses.
 
-![experimental data](res/figure_1-1.svg)
+![experimental data](res/n_t.svg)
 
 
 
